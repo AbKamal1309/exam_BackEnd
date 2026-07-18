@@ -2,7 +2,7 @@ package com.acoidemy.exambackend.dtos;
 
 import lombok.Data;
 
-
+import java.util.List;
 
 @Data
 public class UserDTO {
@@ -13,7 +13,6 @@ public class UserDTO {
 
     private String password;
 
-
-
+    private List<String> roles;
 
 }

@@ -8,10 +8,8 @@ import com.acoidemy.exambackend.exceptions.UserNotFoundException;
 import com.acoidemy.exambackend.services.DashBoardService;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
@@ -21,15 +19,19 @@ import java.util.List;
 public class DashBoardController {
 
     private DashBoardService dashBoardService;
-    @GetMapping ("/dashboard/score")
-        public ResponseTestScoreDTO getScoreTest(@RequestBody RequestTestScoreDTO requestTestScoreDTO)
-                throws AnswerNotFoundException, TestNotFoundException {
-        return dashBoardService.getScoreTest(requestTestScoreDTO);
-        }
+    @GetMapping("/dashboard/score")
+    public ResponseTestScoreDTO getScoreTest(@RequestParam String testId)
+            throws AnswerNotFoundException, TestNotFoundException {
+        RequestTestScoreDTO request = new RequestTestScoreDTO();
+        request.setTestId(testId);
+        return dashBoardService.getScoreTest(request);
+    }
     @GetMapping("/dashboard/allTestForExam")
-    public ResponseAllTestExam getAllTest (@RequestBody RequestAllTestExam requestAllTestExam)
-            throws ExamNotFoundException {
-        return dashBoardService.getAllTestExam(requestAllTestExam);
+    public ResponseEntity<ResponseAllTestExam> getAllTest(@RequestParam String examId) throws ExamNotFoundException {
+        RequestAllTestExam request = new RequestAllTestExam();
+        request.setExamId(examId);
+        ResponseAllTestExam response = dashBoardService.getAllTestExam(request);
+        return ResponseEntity.ok(response);
     }
 
     @GetMapping("/dashboard/allTestForExam/{userId}")

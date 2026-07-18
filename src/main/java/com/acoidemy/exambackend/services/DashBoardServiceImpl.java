@@ -13,6 +13,7 @@ import com.acoidemy.exambackend.repositories.TestExamRepository;
 import com.acoidemy.exambackend.repositories.AppUserRepository;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -49,10 +50,10 @@ public class DashBoardServiceImpl implements DashBoardService{
         responseTestScoreDTO.setExamSetName(testExam.getExam().getAppUser().getName());
         responseTestScoreDTO.setScore(testExam.getScore());
         responseTestScoreDTO.setNumberOfQuestions(testExam.getExam().getNumberOfQuestions());
-        responseTestScoreDTO.setNumberOfFailedQuestions(testService.getScore(testExam.getTestExamId())
-                .getFailedQuestions().size());
-        responseTestScoreDTO.setNumberOfSucceededQuestions(testExam.getExam().getNumberOfQuestions() - testService.getScore(testExam.getTestExamId()).getFailedQuestions().size());
-        responseTestScoreDTO.setFailedQuestions(testService.getScore(testExam.getTestExamId()).getFailedQuestions());
+//       // responseTestScoreDTO.setNumberOfFailedQuestions(testService.getScore(testExam.getCodeTest())
+//                .getFailedQuestions().size());
+//        responseTestScoreDTO.setNumberOfSucceededQuestions(testExam.getExam().getNumberOfQuestions() - testService.getScore(testExam.getCodeTest()).getFailedQuestions().size());
+//        responseTestScoreDTO.setFailedQuestions(testService.getScore(testExam.getCodeTest()).getFailedQuestions());
 
 
 
@@ -67,15 +68,20 @@ public class DashBoardServiceImpl implements DashBoardService{
         Exam exam = examRepository.findById(requestAllTestExam.getExamId())
                 .orElseThrow(() -> new ExamNotFoundException("Exam Not Found"));
 
-        List<TestExam> testExamList = exam.getTestExam();
+        List<TestExam> testExamList = exam.getTestExams();
         for (int i=0;i<testExamList.size();i++){
             TestResultDTO testResultDTO=new TestResultDTO();
 
-            testResultDTO.setTestId(testExamList.get(i).getTestExamId());
+            testResultDTO.setTestId(testExamList.get(i).getCodeTest());
             testResultDTO.setExamId(exam.getCodeExam());
             testResultDTO.setUserNameTest(testExamList.get(i).getAppUser().getName());
             testResultDTO.setUserNameExamSetter(exam.getAppUser().getName());
             testResultDTO.setScore(testExamList.get(i).getScore());
+            testResultDTO.setScorePercentage(testExamList.get(i).getScorePercentage());
+            testResultDTO.setTotalQuestions(testExamList.get(i).getTotalQuestions());
+            testResultDTO.setWrongAnswers(testExamList.get(i).getWrongAnswers());
+            testResultDTO.setCorrectAnswers(testExamList.get(i).getCorrectAnswers());
+            testResultDTO.setDatePassed(testExamList.get(i).getDatePassed());
             testResultDTOList.add(testResultDTO);
         }
 
@@ -99,7 +105,7 @@ public class DashBoardServiceImpl implements DashBoardService{
         for (int i=0;i<testExams.size();i++){
             TestResultDTO testResultDTO=new TestResultDTO();
 
-            testResultDTO.setTestId(testExams.get(i).getTestExamId());
+            testResultDTO.setTestId(testExams.get(i).getCodeTest());
             testResultDTO.setExamId(testExams.get(i).getExam().getCodeExam());
             testResultDTO.setUserNameTest(appUser.getName());
             testResultDTO.setUserNameExamSetter(testExams.get(i).getExam().getAppUser().getName());
@@ -146,13 +152,13 @@ public class DashBoardServiceImpl implements DashBoardService{
         BestScoreDTO bestScoreDTO=new BestScoreDTO();
 
         Exam exam = examRepository.findById(examId).orElseThrow(() -> new ExamNotFoundException("Exam Not Found"));
-        List<TestExam> testExams = exam.getTestExam();
+        List<TestExam> testExams = exam.getTestExams();
 
         Collections.sort(testExams, Comparator.comparing(TestExam::getScore)
-                .thenComparing(TestExam::getTestStartingDate));
+                .thenComparing(TestExam::getDatePassed));
         Collections.reverse(testExams);
         bestScoreDTO.setBestScore(testExams.get(0).getScore());
-        bestScoreDTO.setTestId(testExams.get(0).getTestExamId());
+        bestScoreDTO.setTestId(testExams.get(0).getCodeTest());
         bestScoreDTO.setName(testExams.get(0).getAppUser().getName());
 
         bestScoreDTO.setExamId(exam.getCodeExam());
