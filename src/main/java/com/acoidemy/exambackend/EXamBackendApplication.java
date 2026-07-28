@@ -20,6 +20,7 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Profile;
 import org.springframework.core.annotation.Order;
+import com.acoidemy.exambackend.utils.IdGenerator;
 
 import java.util.Date;
 import java.util.Random;
@@ -95,7 +96,7 @@ public class EXamBackendApplication {
             appUserRepository.findAll().forEach(user -> {
                 for (int i = 0; i < 5; i++) {
                     Exam exam = new Exam();
-                    exam.setCodeExam(UUID.randomUUID().toString().substring(0, 8));
+                    exam.setCodeExam(IdGenerator.generate());
                     exam.setDateCreation(new Date());
                     exam.setStatus(ExamStatus.CREATED);
                     exam.setNumberOfQuestions(nb.nextInt(5, 10));
@@ -108,7 +109,7 @@ public class EXamBackendApplication {
             examRepository.findAll().forEach(exam -> {
                 for (int i = 0; i < exam.getNumberOfQuestions(); i++) {
                     Question question = new Question();
-                    question.setCodeQuestion(UUID.randomUUID().toString().substring(0, 8));
+                    question.setCodeQuestion(IdGenerator.generate());
                     question.setQuestionContent(getRandomStr(30));
                     question.setAppreciatedPoint(2);
                     question.setExam(exam);
@@ -119,7 +120,7 @@ public class EXamBackendApplication {
             questionRepository.findAll().forEach(question -> {
                 for (int i = 0; i < 4; i++) {
                     Answer answer = new Answer();
-                    answer.setCodeAnswer(UUID.randomUUID().toString().substring(0, 8));
+                    answer.setCodeAnswer(IdGenerator.generate());
                     answer.setAnswerContent(getRandomStr(30));
                     answer.setAnswerStatus(Math.random() > 0.5 ? AnswerStatus.WRONG : AnswerStatus.CORRECT);
                     answer.setQuestion(question);

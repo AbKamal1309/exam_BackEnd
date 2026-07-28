@@ -14,6 +14,7 @@ import org.springframework.stereotype.Service;
 
 import java.util.*;
 import java.util.stream.Collectors;
+import com.acoidemy.exambackend.utils.IdGenerator;
 
 @Service
 public class ExamMapperImpl {
@@ -150,7 +151,7 @@ public class ExamMapperImpl {
 
         Question question = new Question();
         question.setCodeQuestion(questionDTO.getCodeQuestion() != null ?
-                questionDTO.getCodeQuestion() : UUID.randomUUID().toString().substring(0, 8));
+                questionDTO.getCodeQuestion() : IdGenerator.generate());
         question.setQuestionContent(questionDTO.getQuestionContent());
         question.setDescription(questionDTO.getDescription());
         // ── AJOUT : pièce jointe ──
@@ -283,7 +284,7 @@ public class ExamMapperImpl {
 
             for (QuestionDTO questionDTO : questionDTOList) {
                 Question question = new Question();
-                question.setCodeQuestion(UUID.randomUUID().toString().substring(0, 8));
+                question.setCodeQuestion(IdGenerator.generate());
                 question.setQuestionContent(questionDTO.getQuestionContent());
                 question.setDescription(questionDTO.getDescription());
                 question.setExam(exam);
@@ -299,7 +300,7 @@ public class ExamMapperImpl {
                     List<Answer> answerList = new ArrayList<>();
                     for (AnswerDTO answerDTO : answersDTO) {
                         Answer answer = new Answer();
-                        answer.setCodeAnswer(UUID.randomUUID().toString().substring(0, 8));
+                        answer.setCodeAnswer(IdGenerator.generate());
                         answer.setAnswerContent(answerDTO.getAnswerContent());
                         answer.setAnswerStatus(answerDTO.getAnswerStatus());
                         answer.setDescription(answerDTO.getDescription());

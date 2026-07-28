@@ -14,6 +14,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.text.SimpleDateFormat;
 import java.util.*;
 import java.util.stream.Collectors;
+import com.acoidemy.exambackend.utils.IdGenerator;
 
 @Service
 @Transactional
@@ -185,7 +186,7 @@ public class TestServiceImpl implements TestService {
 
         // 6. Création et sauvegarde du test
         TestExam testExam = new TestExam();
-        testExam.setCodeTest(UUID.randomUUID().toString().substring(0, 8));
+        testExam.setCodeTest(IdGenerator.generate());
         testExam.setDatePassed(new Date());
         testExam.setTotalQuestions(totalQuestions);
         testExam.setAppUser(appUser);

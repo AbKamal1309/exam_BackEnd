@@ -216,6 +216,15 @@ public class ExamRestController {
         return ResponseEntity.ok(examService.getSharedExamsForGroup(groupId, userId));
     }
 
+    // ── Tous les examens partagés dans MES groupes (tous groupes confondus) ──
+    // GET /exams/sharedWithMyGroups — userId dérivé du JWT, jamais du client.
+    @GetMapping("/exams/sharedWithMyGroups")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<List<GroupSharedExamDTO>> getExamsSharedWithMyGroups(Authentication authentication) {
+        Long userId = securityUtils.getCurrentUserId(authentication);
+        return ResponseEntity.ok(examService.getExamsSharedWithUserGroups(userId));
+    }
+
 
     // ── Historique des tests d'un utilisateur pour un examen ──────
     // GET /exams/{codeExam}/my-tests

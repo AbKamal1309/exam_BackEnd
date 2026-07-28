@@ -77,6 +77,8 @@ public interface ExamService {
     @Transactional()
     public List<ExamDTO> getSharedExamsForGroup(Long groupId, Long userId);
 
+    List<GroupSharedExamDTO> getExamsSharedWithUserGroups(Long userId);
+
     // ── 7. Lister tous les examens publics ────────────────────────
     @Transactional()
     public List<ExamDTO> getPublicExams();

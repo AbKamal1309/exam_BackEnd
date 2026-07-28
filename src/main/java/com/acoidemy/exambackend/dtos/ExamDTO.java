@@ -24,6 +24,7 @@ public class ExamDTO {
     private String          originalExamId;
     private List<QuestionDTO> questionDTOList;
     private Integer durationMinutes;
+    private Integer numberOfTestsPassed;
 
 
 

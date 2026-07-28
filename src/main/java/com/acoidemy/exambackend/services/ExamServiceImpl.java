@@ -12,15 +12,13 @@ import com.acoidemy.exambackend.mappers.ExamMapperImpl;
 import com.acoidemy.exambackend.repositories.*;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.catalina.Store;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.context.annotation.Bean;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.io.Console;
 import java.util.*;
 import java.util.stream.Collectors;
+import com.acoidemy.exambackend.utils.IdGenerator;
 
 @Service
 @Transactional
@@ -49,7 +47,7 @@ public class ExamServiceImpl implements ExamService {
       //  Exam exam = dtoMapper.fromExamDTO(examDTO);
         Exam exam=new Exam();
      //   exam.setAppUser(dtoMapper.fromUserDTO(userService.getUser(examDTO.getUserId())));
-        exam.setCodeExam(UUID.randomUUID().toString().substring(0,8));
+        exam.setCodeExam(IdGenerator.generate());
         exam.setStatus(ExamStatus.CREATED);
         exam.setDateCreation(new Date());
         exam.setNumberOfQuestions(examDTO.getQuestionDTOList().size());
@@ -63,7 +61,7 @@ public class ExamServiceImpl implements ExamService {
         log.info("the number of questions is  : "+savedExam.getNumberOfQuestions());
         for (int i = 0; i< savedExam.getNumberOfQuestions(); i++) {
             Question question=new Question();
-            question.setCodeQuestion(UUID.randomUUID().toString().substring(0,8));
+            question.setCodeQuestion(IdGenerator.generate());
             question.setQuestionContent(dtoMapper.fromQuestionDTO(examDTO.getQuestionDTOList().get(i)).getQuestionContent());
         log.info(dtoMapper.fromQuestionDTO(examDTO.getQuestionDTOList().get(i)).getQuestionContent());
             question.setExam(savedExam);
@@ -71,7 +69,7 @@ public class ExamServiceImpl implements ExamService {
         log.info(savedQuestion.getQuestionContent()+" "+savedQuestion.getExam().getDescription());
             for (int j=0;j<4;j++){
                 Answer answer=new Answer();
-                answer.setCodeAnswer(UUID.randomUUID().toString().substring(0,8));
+                answer.setCodeAnswer(IdGenerator.generate());
                 answer.setAnswerContent(examDTO.getQuestionDTOList().get(i).getAnswers().get(j).getAnswerContent());
              //   log.info(examDTO.getQuestionDTOList().get(i).getAnswers().get(j).getAnswerContent());
                 answer.setAnswerStatus(examDTO.getQuestionDTOList().get(i).getAnswers().get(j).getAnswerStatus());
@@ -98,7 +96,7 @@ public class ExamServiceImpl implements ExamService {
     public ExamDTO createExam(Long userId, ExamDTO dto) {
         AppUser user = findUser(userId);
         Exam exam = new Exam();
-        exam.setCodeExam(UUID.randomUUID().toString().substring(0,8));
+        exam.setCodeExam(IdGenerator.generate());
         exam.setDescription(dto.getDescription());
         exam.setDateCreation(new Date());
         exam.setStatus(dto.getStatus() != null ? dto.getStatus() : ExamStatus.CREATED);
@@ -111,7 +109,7 @@ public class ExamServiceImpl implements ExamService {
         for (int i = 0; i < savedExam.getNumberOfQuestions(); i++) {
             QuestionDTO questionDTO = dto.getQuestionDTOList().get(i);
             Question question = new Question();
-            question.setCodeQuestion(UUID.randomUUID().toString().substring(0,8));
+            question.setCodeQuestion(IdGenerator.generate());
             question.setQuestionContent(questionDTO.getQuestionContent());
             question.setDescription(questionDTO.getDescription());
             question.setExam(savedExam);
@@ -127,7 +125,7 @@ public class ExamServiceImpl implements ExamService {
             if (answersDTO != null) {
                 for (AnswerDTO answerDTO : answersDTO) {
                     Answer answer = new Answer();
-                    answer.setCodeAnswer(UUID.randomUUID().toString().substring(0,8));
+                    answer.setCodeAnswer(IdGenerator.generate());
                     answer.setAnswerContent(answerDTO.getAnswerContent());
                     answer.setAnswerStatus(answerDTO.getAnswerStatus());
                     answer.setDescription(answerDTO.getDescription());
@@ -201,7 +199,7 @@ public class ExamServiceImpl implements ExamService {
             } else {
                 // Nouvelle question ajoutée pendant l'édition
                 question = new Question();
-                question.setCodeQuestion(UUID.randomUUID().toString().substring(0, 8));
+                question.setCodeQuestion(IdGenerator.generate());
                 question.setQuestionContent(qDto.getQuestionContent());
                 question.setDescription(qDto.getDescription());
                 question.setAttachmentUrl(qDto.getAttachmentUrl());
@@ -231,7 +229,7 @@ public class ExamServiceImpl implements ExamService {
                     answer.setDescription(aDto.getDescription());
                 } else {
                     answer = new Answer();
-                    answer.setCodeAnswer(UUID.randomUUID().toString().substring(0, 8));
+                    answer.setCodeAnswer(IdGenerator.generate());
                     answer.setAnswerContent(aDto.getAnswerContent());
                     answer.setAnswerStatus(aDto.getAnswerStatus());
                     answer.setDescription(aDto.getDescription());
@@ -260,15 +258,29 @@ public class ExamServiceImpl implements ExamService {
         exam.setNumberOfQuestions(incomingQuestions.size());
         Exam savedExam = examRepository.save(exam);
 
-        // Recharger complet pour la réponse
+        // Recharger pour la réponse — SANS jamais réassigner answers/questions
+        // sur une entité encore gérée par la transaction (setAnswers()/
+        // setQuestions() sur une relation cascade=ALL,orphanRemoval=true fait
+        // perdre à Hibernate le suivi de la collection déjà "possédée",
+        // provoquant "no longer referenced by the owning entity instance" au
+        // flush). On construit directement les DTOs de réponse à la place.
         Exam reloaded = examRepository.findByCodeExam(savedExam.getCodeExam());
         List<Question> finalQuestions = questionRepository.findByExamCodeExam(reloaded.getCodeExam());
-        for (Question q : finalQuestions) {
-            q.setAnswers(answerRepository.findByQuestion(q));
-        }
-        reloaded.setQuestions(finalQuestions);
 
-        return dtoMapper.fromExam(reloaded);
+        List<QuestionDTO> finalQuestionDTOs = new ArrayList<>();
+        for (Question q : finalQuestions) {
+            QuestionDTO qDto = dtoMapper.fromQuestion(q);
+            List<AnswerDTO> aDtos = new ArrayList<>();
+            for (Answer a : answerRepository.findByQuestion(q)) {
+                aDtos.add(dtoMapper.fromAnswer(a));
+            }
+            qDto.setAnswers(aDtos);
+            finalQuestionDTOs.add(qDto);
+        }
+
+        ExamDTO resultDTO = dtoMapper.fromExam(reloaded);
+        resultDTO.setQuestionDTOList(finalQuestionDTOs);
+        return resultDTO;
     }
     @Override
     public void deleteExam(String codeExam, Long userId) throws ExamNotFoundException {
@@ -327,7 +339,7 @@ public class ExamServiceImpl implements ExamService {
 
        Question question=dtoMapper.fromQuestionDTOWithAnswers(questionDTO);
        // Question question = dtoMapper.fromNewQuestionDTOWithoutAnswers(questionDTO);
-       question.setCodeQuestion(UUID.randomUUID().toString().substring(0,8));
+       question.setCodeQuestion(IdGenerator.generate());
         Exam exam = examRepository.findByCodeExam(questionDTO.getExamId());
         if (exam == null) {
             throw new ExamNotFoundException("Exam Not Found");
@@ -345,7 +357,7 @@ public class ExamServiceImpl implements ExamService {
 
         for (int i=0;i<questionDTO.getAnswers().size();i++){
             Answer answer=new Answer();
-            answer.setCodeAnswer(UUID.randomUUID().toString().substring(0,8));
+            answer.setCodeAnswer(IdGenerator.generate());
             answer.setAnswerContent(questionDTO.getAnswers().get(i).getAnswerContent());
             answer.setAnswerStatus(questionDTO.getAnswers().get(i).getAnswerStatus());
             answer.setQuestion(question);
@@ -371,7 +383,7 @@ public class ExamServiceImpl implements ExamService {
         List<Answer> answers=new ArrayList<>();
         for (int i=0;i<questionDTO.getAnswers().size();i++){
             Answer answer=new Answer();
-            answer.setCodeAnswer(UUID.randomUUID().toString().substring(0,8));
+            answer.setCodeAnswer(IdGenerator.generate());
             answer.setAnswerContent(questionDTO.getAnswers().get(i).getAnswerContent());
             answer.setQuestion(savedQuestion);
             Answer savedAnswer = answerRepository.save(answer);
@@ -451,7 +463,7 @@ public class ExamServiceImpl implements ExamService {
         }
 
         Answer answer = dtoMapper.fromAnswerDTO(answerDTO);
-        answer.setCodeAnswer(UUID.randomUUID().toString().substring(0,8));
+        answer.setCodeAnswer(IdGenerator.generate());
         answer.setQuestion(question);
         Answer savedAnswer = answerRepository.save(answer);
         return dtoMapper.fromAnswer(savedAnswer);
@@ -547,38 +559,35 @@ public class ExamServiceImpl implements ExamService {
     public ExamDTO saveExamAllQuestionsAndAnswers(ExamDTO examDTO) throws UserNotFoundException {
 
         log.info("Saving New Exam With All Questions And Answers");
-        Exam exam=dtoMapper.fromExamAllQuestionsAndAnswersDTO(examDTO);
-        exam.setCodeExam(UUID.randomUUID().toString().substring(0,8));
+        Exam exam = dtoMapper.fromExamAllQuestionsAndAnswersDTO(examDTO);
+        exam.setCodeExam(IdGenerator.generate());
         exam.setDateCreation(new Date());
         exam.setNumberOfQuestions(examDTO.getQuestionDTOList().size());
         exam.setAppUser(dtoMapper.fromUserDTO(userService.getUser(examDTO.getUserId())));
         exam.setStatus(ExamStatus.CREATED);
+
+        // La cascade (Exam.questions -> Question.answers, toutes deux en
+        // CascadeType.ALL) persiste déjà l'examen ET ses questions ET leurs
+        // réponses en un seul appel — leurs codeQuestion/codeAnswer sont déjà
+        // renseignés par le mapper juste au-dessus.
+        // ⚠️ NE JAMAIS refaire de save manuel après ça, et surtout ne JAMAIS
+        // changer le codeQuestion/codeAnswer d'une entité déjà gérée par cette
+        // transaction (Hibernate perd le fil de son identité, ce qui provoquait
+        // des "Unable to find ... with id ..." aléatoires lors du flush).
         Exam savedExam = examRepository.save(exam);
 
-        List<QuestionDTO>   questionDTOS=new ArrayList<>();
-        for (int i=0;i<exam.getQuestions().size();i++){
-            Question question=exam.getQuestions().get(i);
-            question.setCodeQuestion(UUID.randomUUID().toString().substring(0,8));
-            question.setDateCreation(exam.getDateCreation());
-            question.setExam(exam);
-            Question savedQuestion = questionRepository.save(question);
-
-            List<AnswerDTO> answers=new ArrayList<>();
-            for (int j=0;j<question.getAnswers().size();j++){
-                Answer answer=question.getAnswers().get(j);
-                answer.setCodeAnswer(UUID.randomUUID().toString().substring(0,8));
-                answer.setQuestion(savedQuestion);
-                Answer savedAnswer = answerRepository.save(answer);
+        List<QuestionDTO> questionDTOS = new ArrayList<>();
+        for (Question savedQuestion : savedExam.getQuestions()) {
+            List<AnswerDTO> answers = new ArrayList<>();
+            for (Answer savedAnswer : savedQuestion.getAnswers()) {
                 answers.add(dtoMapper.fromAnswer(savedAnswer));
             }
-            QuestionDTO questionDTO=dtoMapper.fromQuestion(savedQuestion);
+            QuestionDTO questionDTO = dtoMapper.fromQuestion(savedQuestion);
             questionDTO.setAnswers(answers);
             questionDTOS.add(questionDTO);
-
         }
 
-
-        ExamDTO examDTO1=new ExamDTO();
+        ExamDTO examDTO1 = new ExamDTO();
         examDTO1.setCodeExam(savedExam.getCodeExam());
         examDTO1.setDescription(savedExam.getDescription());
         examDTO1.setNumberOfQuestions(savedExam.getNumberOfQuestions());
@@ -587,8 +596,7 @@ public class ExamServiceImpl implements ExamService {
         examDTO1.setStatus(savedExam.getStatus());
         examDTO1.setQuestionDTOList(questionDTOS);
 
-
-       return examDTO1;
+        return examDTO1;
     }
 
 
@@ -692,6 +700,31 @@ public class ExamServiceImpl implements ExamService {
     }
 
     @Override
+    public List<GroupSharedExamDTO> getExamsSharedWithUserGroups(Long userId) {
+        List<Group> myGroups = groupRepository.findGroupsByMemberId(userId);
+        List<GroupSharedExamDTO> result = new ArrayList<>();
+        for (Group g : myGroups) {
+            try {
+                for (Exam e : g.getSharedExams()) {
+                    result.add(GroupSharedExamDTO.builder()
+                            .examDTO(toDTO(e))
+                            .groupId(g.getId())
+                            .groupName(g.getGroupName())
+                            .build());
+                }
+            } catch (RuntimeException ex) {
+                // Une référence cassée dans group_shared_exams (examen supprimé,
+                // ou jamais persisté avec succès malgré une tentative de partage)
+                // ne doit jamais faire planter tout le chargement du Dashboard —
+                // on journalise et on passe simplement ce groupe.
+                log.warn("Impossible de charger les examens partagés du groupe {} ({}) : {}",
+                        g.getId(), g.getGroupName(), ex.getMessage());
+            }
+        }
+        return result;
+    }
+
+    @Override
     public List<ExamDTO> getPublicExams() {
         return examRepository.findByVisibility(ExamVisibility.PUBLIC)
                 .stream().map(this::toDTO).collect(Collectors.toList());
@@ -738,7 +771,6 @@ public class ExamServiceImpl implements ExamService {
         return examRepository.findById(code)
                 .orElseThrow(() -> new RuntimeException("Examen introuvable : " + code));
     }
-
     private ExamDTO toDTO(Exam exam) {
         return ExamDTO.builder()
                 .codeExam(exam.getCodeExam())
@@ -750,6 +782,7 @@ public class ExamServiceImpl implements ExamService {
                 .durationMinutes(exam.getDurationMinutes())
                 .userId(exam.getAppUser() != null ? exam.getAppUser().getId() : null)
                 .originalExamId(exam.getOriginalExam() != null ? exam.getOriginalExam().getCodeExam() : null)
+                .numberOfTestsPassed(exam.getTestExams() != null ? exam.getTestExams().size() : 0)
                 .build();
     }
 

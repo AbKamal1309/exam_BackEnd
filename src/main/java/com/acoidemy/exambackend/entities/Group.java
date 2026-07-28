@@ -93,7 +93,7 @@ public class Group {
         }
         // Générer un ID unique automatiquement
         if (this.groupId == null) {
-            this.groupId = "GRP-" + java.util.UUID.randomUUID().toString().substring(0, 8).toUpperCase();
+            this.groupId = "GRP-" + com.acoidemy.exambackend.utils.IdGenerator.generateUpperCase();
         }
     }
 

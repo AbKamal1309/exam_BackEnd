@@ -32,7 +32,7 @@ public class Question {
     @ManyToOne
     private TestExam test;
 
-    @OneToMany(mappedBy = "question")
+    @OneToMany(mappedBy = "question", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<Answer> answers;
 
     @Column(name = "attachment_url", length = 500)
