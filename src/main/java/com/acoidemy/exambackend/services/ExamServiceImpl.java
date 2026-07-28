@@ -38,112 +38,29 @@ public class ExamServiceImpl implements ExamService {
     private TestExamRepository testExamRepository;
 
     @Override
-    public ExamDTO saveExam(ExamDTO examDTO) throws UserNotFoundException,ExamNotFoundException {
-        log.info("Saving new Exam");
-
-       Optional<AppUser> appUser= appUserRepository.findById(examDTO.getUserId());
-       log.info(appUser.get().getName());
-     //   examDTO.setDateCreation(new Date());
-      //  Exam exam = dtoMapper.fromExamDTO(examDTO);
-        Exam exam=new Exam();
-     //   exam.setAppUser(dtoMapper.fromUserDTO(userService.getUser(examDTO.getUserId())));
-        exam.setCodeExam(IdGenerator.generate());
-        exam.setStatus(ExamStatus.CREATED);
-        exam.setDateCreation(new Date());
-        exam.setNumberOfQuestions(examDTO.getQuestionDTOList().size());
-        exam.setDescription(examDTO.getDescription());
-        exam.setAppUser(appUser.get());
-
-
-         Exam   savedExam = examRepository.save(exam);
-
-        log.info("the code is : "+savedExam.getCodeExam());
-        log.info("the number of questions is  : "+savedExam.getNumberOfQuestions());
-        for (int i = 0; i< savedExam.getNumberOfQuestions(); i++) {
-            Question question=new Question();
-            question.setCodeQuestion(IdGenerator.generate());
-            question.setQuestionContent(dtoMapper.fromQuestionDTO(examDTO.getQuestionDTOList().get(i)).getQuestionContent());
-        log.info(dtoMapper.fromQuestionDTO(examDTO.getQuestionDTOList().get(i)).getQuestionContent());
-            question.setExam(savedExam);
-            Question savedQuestion=questionRepository.save(question);
-        log.info(savedQuestion.getQuestionContent()+" "+savedQuestion.getExam().getDescription());
-            for (int j=0;j<4;j++){
-                Answer answer=new Answer();
-                answer.setCodeAnswer(IdGenerator.generate());
-                answer.setAnswerContent(examDTO.getQuestionDTOList().get(i).getAnswers().get(j).getAnswerContent());
-             //   log.info(examDTO.getQuestionDTOList().get(i).getAnswers().get(j).getAnswerContent());
-                answer.setAnswerStatus(examDTO.getQuestionDTOList().get(i).getAnswers().get(j).getAnswerStatus());
-                answer.setQuestion(savedQuestion);
-                Answer savedAnswer = answerRepository.save(answer);
-                log.info(savedAnswer.getAnswerContent()+" from "+savedQuestion.getQuestionContent());
-            }
-
-        }
-
-        log.info("Exam saved");
-        Exam examRegistred = examRepository.findByCodeExam(savedExam.getCodeExam());
-                //.orElseThrow(() -> new ExamNotFoundException("Exam Not Found"));
-        List<Question> questionList = questionRepository.findByExamCodeExam(examRegistred.getCodeExam());
-        for (Question question : questionList){
-            question.setAnswers(answerRepository.findByQuestion(question));
-        }
-        examRegistred.setQuestions(questionList);
-
-        return dtoMapper.fromExam(examRegistred);
+    public ExamDTO saveExam(ExamDTO examDTO) throws UserNotFoundException, ExamNotFoundException {
+        // saveExam() dupliquait la même logique que saveExamAllQuestionsAndAnswers()
+        // avec sa propre implémentation manuelle (boucles + sauvegardes
+        // individuelles, sans jamais synchroniser les collections bidirectionnelles
+        // en mémoire — la vraie source des erreurs "orphan-removal" qu'on vient de
+        // traquer). On délègue désormais à la version déjà correcte, testée et
+        // cascade-safe, pour n'avoir plus qu'UN SEUL chemin de création d'examen à
+        // maintenir, plutôt que deux implémentations parallèles qui divergent.
+        return saveExamAllQuestionsAndAnswers(examDTO);
     }
-
     @Override
     public ExamDTO createExam(Long userId, ExamDTO dto) {
-        AppUser user = findUser(userId);
-        Exam exam = new Exam();
-        exam.setCodeExam(IdGenerator.generate());
-        exam.setDescription(dto.getDescription());
-        exam.setDateCreation(new Date());
-        exam.setStatus(dto.getStatus() != null ? dto.getStatus() : ExamStatus.CREATED);
-        exam.setNumberOfQuestions(dto.getQuestionDTOList().size());
-        exam.setVisibility(dto.getVisibility() != null ? dto.getVisibility() : ExamVisibility.PRIVATE);
-        exam.setDurationMinutes(dto.getDurationMinutes());
-        exam.setAppUser(user);
-        Exam savedExam = examRepository.save(exam);
-
-        for (int i = 0; i < savedExam.getNumberOfQuestions(); i++) {
-            QuestionDTO questionDTO = dto.getQuestionDTOList().get(i);
-            Question question = new Question();
-            question.setCodeQuestion(IdGenerator.generate());
-            question.setQuestionContent(questionDTO.getQuestionContent());
-            question.setDescription(questionDTO.getDescription());
-            question.setExam(savedExam);
-            // ── AJOUT : pièce jointe ──
-            question.setAttachmentUrl(questionDTO.getAttachmentUrl());
-            question.setAttachmentType(questionDTO.getAttachmentType());
-            question.setAttachmentName(questionDTO.getAttachmentName());
-
-            Question savedQuestion = questionRepository.save(question);
-
-            // ── CORRECTIF : boucle dynamique, plus de "j<4" codé en dur ──
-            List<AnswerDTO> answersDTO = questionDTO.getAnswers();
-            if (answersDTO != null) {
-                for (AnswerDTO answerDTO : answersDTO) {
-                    Answer answer = new Answer();
-                    answer.setCodeAnswer(IdGenerator.generate());
-                    answer.setAnswerContent(answerDTO.getAnswerContent());
-                    answer.setAnswerStatus(answerDTO.getAnswerStatus());
-                    answer.setDescription(answerDTO.getDescription());
-                    answer.setQuestion(savedQuestion);
-                    answerRepository.save(answer);
-                }
-            }
+        // Même logique dupliquée que saveExam/saveExamAllQuestionsAndAnswers, avec
+        // le même bug (question.setAnswers(...) sur une entité déjà gérée par la
+        // transaction, incompatible avec cascade=ALL,orphanRemoval=true). On
+        // délègue à l'implémentation déjà correcte plutôt que de maintenir une
+        // troisième copie divergente.
+        dto.setUserId(userId);
+        try {
+            return saveExamAllQuestionsAndAnswers(dto);
+        } catch (UserNotFoundException e) {
+            throw new RuntimeException(e.getMessage());
         }
-
-        log.info("Exam saved");
-        Exam examRegistred = examRepository.findByCodeExam(savedExam.getCodeExam());
-        List<Question> questionList = questionRepository.findByExamCodeExam(examRegistred.getCodeExam());
-        for (Question question : questionList) {
-            question.setAnswers(answerRepository.findByQuestion(question));
-        }
-        examRegistred.setQuestions(questionList);
-
-        return dtoMapper.fromExam(examRegistred);
     }
     @Override
     public List<ExamDTO> listExams() {
