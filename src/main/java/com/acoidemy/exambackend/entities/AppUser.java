@@ -38,6 +38,11 @@ public class AppUser {
 
     // ── Rôles ─────────────────────────────────────────────────────
     @ManyToMany(fetch = FetchType.EAGER)
+    @JoinTable(
+            name = "app_user_app_roles",
+            joinColumns = @JoinColumn(name = "app_user_id"),
+            inverseJoinColumns = @JoinColumn(name = "app_roles_id")
+    )
     private Collection<AppRole> appRoles = new ArrayList<>();
 
 
