@@ -27,5 +27,9 @@ public class QuestionDTO {
     private AttachmentType attachmentType;
     private String attachmentName;
 
+    // Calculé dans ExamMapperImpl.fromQuestion() : true si plus d'une réponse
+    // a le statut CORRECT. Consommé par le mobile pour choisir cases à cocher
+    // vs bouton radio pendant le test.
+    private Boolean multipleCorrectAllowed;
 
 }

@@ -117,6 +117,12 @@ public class ExamMapperImpl {
                 answers.add(fromAnswer(answer));
             }
             questionDTO.setAnswers(answers);
+
+            // ── AJOUT : détection des questions à réponses multiples ──
+            long correctCount = answers.stream()
+                    .filter(a -> a.getAnswerStatus() == com.acoidemy.exambackend.enums.AnswerStatus.CORRECT)
+                    .count();
+            questionDTO.setMultipleCorrectAllowed(correctCount > 1);
         }
 
         return questionDTO;
