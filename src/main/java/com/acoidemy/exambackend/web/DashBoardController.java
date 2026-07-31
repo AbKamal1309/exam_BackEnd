@@ -9,6 +9,7 @@ import com.acoidemy.exambackend.services.DashBoardService;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -27,10 +28,10 @@ public class DashBoardController {
         return dashBoardService.getScoreTest(request);
     }
     @GetMapping("/dashboard/allTestForExam")
-    public ResponseEntity<ResponseAllTestExam> getAllTest(@RequestParam String examId) throws ExamNotFoundException {
+    public ResponseEntity<ResponseAllTestExam> getAllTest(@RequestParam String examId, Authentication authentication) throws ExamNotFoundException {
         RequestAllTestExam request = new RequestAllTestExam();
         request.setExamId(examId);
-        ResponseAllTestExam response = dashBoardService.getAllTestExam(request);
+        ResponseAllTestExam response = dashBoardService.getAllTestExam(request, authentication);
         return ResponseEntity.ok(response);
     }
 

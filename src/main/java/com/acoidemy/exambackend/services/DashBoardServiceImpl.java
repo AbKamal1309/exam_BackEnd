@@ -11,9 +11,11 @@ import com.acoidemy.exambackend.exceptions.UserNotFoundException;
 import com.acoidemy.exambackend.repositories.ExamRepository;
 import com.acoidemy.exambackend.repositories.TestExamRepository;
 import com.acoidemy.exambackend.repositories.AppUserRepository;
+import com.acoidemy.exambackend.security.SecurityUtils;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -35,6 +37,7 @@ public class DashBoardServiceImpl implements DashBoardService{
 
     private AppUserRepository appUserRepository;
 
+    private SecurityUtils securityUtils;
 
     private TestService testService;
 
@@ -61,12 +64,22 @@ public class DashBoardServiceImpl implements DashBoardService{
     }
 
     @Override
-    public ResponseAllTestExam getAllTestExam(RequestAllTestExam requestAllTestExam) throws ExamNotFoundException {
+    public ResponseAllTestExam getAllTestExam(RequestAllTestExam requestAllTestExam, Authentication authentication) throws ExamNotFoundException {
         ResponseAllTestExam responseAllTestExam=new ResponseAllTestExam();
         List<TestResultDTO> testResultDTOList=new ArrayList<>();
 
         Exam exam = examRepository.findById(requestAllTestExam.getExamId())
                 .orElseThrow(() -> new ExamNotFoundException("Exam Not Found"));
+
+        // ── AJOUT : seul le créateur de l'examen (ou un admin) peut voir qui a
+        // passé le test et avec quel score. Sans ce contrôle, n'importe quel
+        // utilisateur connaissant un examId pouvait consulter les résultats de
+        // tous les autres candidats.
+        AppUser currentUser = securityUtils.getCurrentUser(authentication);
+        boolean isCreator = exam.getAppUser() != null && exam.getAppUser().getId().equals(currentUser.getId());
+        if (!isCreator && !securityUtils.isAdmin(authentication)) {
+            throw new RuntimeException("Vous ne pouvez consulter les résultats des tests que pour vos propres examens.");
+        }
 
         List<TestExam> testExamList = exam.getTestExams();
         for (int i=0;i<testExamList.size();i++){

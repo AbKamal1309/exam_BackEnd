@@ -233,6 +233,13 @@ public class ExamMapperImpl {
             examDTO.setNumberOfQuestions(questionDTOList.size());
         }
 
+        // ── AJOUT : nombre de tests déjà passés (badge Dashboard) ──────────
+        // BeanUtils.copyProperties ne peut pas le remplir : Exam n'a pas de champ
+        // scalaire numberOfTestsPassed, seulement la liste testExams. Sans cette
+        // ligne le badge reste figé à 0 pour toute vue basée sur fromExam()
+        // (listExamsByUser notamment, utilisée par /examsOfUser/{userId}).
+        examDTO.setNumberOfTestsPassed(exam.getTestExams() != null ? exam.getTestExams().size() : 0);
+
         return examDTO;
     }
 
