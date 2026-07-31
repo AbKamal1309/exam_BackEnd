@@ -59,6 +59,21 @@ public class TestServiceImpl implements TestService {
         testExamDTO.setCodeExam(exam.getCodeExam());
         testExamDTO.setExamDTO(dtoMapper.fromExam(exam));
 
+        // ── AJOUT : masquage des bonnes réponses pendant le test ──────────
+        // multipleCorrectAllowed est calculé dans fromQuestion() à partir du vrai
+        // answerStatus, AVANT ce masquage : l'info utile au mobile (cases à cocher
+        // ou non) est donc préservée, mais on ne renvoie plus quelle réponse est
+        // correcte. Le score est de toute façon recalculé côté serveur dans
+        // sendTest() à partir des données en base, jamais à partir de ce qui est
+        // soumis tel quel.
+        if (testExamDTO.getExamDTO() != null && testExamDTO.getExamDTO().getQuestionDTOList() != null) {
+            testExamDTO.getExamDTO().getQuestionDTOList().forEach(q -> {
+                if (q.getAnswers() != null) {
+                    q.getAnswers().forEach(a -> a.setAnswerStatus(null));
+                }
+            });
+        }
+
         // ── AJOUT : minuteur basé sur l'heure serveur ──────────────────
         if (exam.getDurationMinutes() != null && exam.getDurationMinutes() > 0) {
             TestSession session = testSessionRepository
