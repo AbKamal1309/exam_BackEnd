@@ -53,10 +53,18 @@ public class DashBoardServiceImpl implements DashBoardService{
         responseTestScoreDTO.setExamSetName(testExam.getExam().getAppUser().getName());
         responseTestScoreDTO.setScore(testExam.getScore());
         responseTestScoreDTO.setNumberOfQuestions(testExam.getExam().getNumberOfQuestions());
-//       // responseTestScoreDTO.setNumberOfFailedQuestions(testService.getScore(testExam.getCodeTest())
-//                .getFailedQuestions().size());
-//        responseTestScoreDTO.setNumberOfSucceededQuestions(testExam.getExam().getNumberOfQuestions() - testService.getScore(testExam.getCodeTest()).getFailedQuestions().size());
-//        responseTestScoreDTO.setFailedQuestions(testService.getScore(testExam.getCodeTest()).getFailedQuestions());
+        // ── AJOUT : ces deux compteurs restaient à 0 côté mobile (ResultScreen).
+        // testService.getScore(codeTest) référencé ici avant n'existe pas avec cette
+        // signature — la seule surcharge disponible attend le TestSendDTO original
+        // (les réponses soumises), qui n'est jamais persisté après sendTest(). En
+        // revanche TestExam stocke déjà ces deux agrégats au moment de la soumission :
+        // pas besoin de recalcul, juste les exposer.
+        responseTestScoreDTO.setNumberOfSucceededQuestions(testExam.getCorrectAnswers());
+        responseTestScoreDTO.setNumberOfFailedQuestions(testExam.getWrongAnswers());
+        // failedQuestions (le détail question par question) resterait vide : le
+        // détail des réponses choisies n'est pas persisté par sendTest() (pas
+        // d'entité TestAnswer créée). Nécessiterait de sauvegarder les réponses
+        // soumises pour être vraiment exploitable — dis-moi si tu veux ce chantier.
 
 
 
