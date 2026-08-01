@@ -7,6 +7,7 @@ import com.acoidemy.exambackend.exceptions.ExamNotFoundException;
 import com.acoidemy.exambackend.exceptions.QuestionNotFoundException;
 import com.acoidemy.exambackend.exceptions.UserNotFoundException;
 import jakarta.transaction.Transactional;
+import org.springframework.security.core.Authentication;
 
 import java.util.List;
 
@@ -16,7 +17,10 @@ public interface ExamService {
 
     List<ExamDTO> listExams();
 
-    ExamDTO getExam(String codeExam) throws ExamNotFoundException;
+    // authentication : permet de ne renvoyer les questions (et a fortiori les
+    // réponses) qu'au créateur de l'examen ou à un admin — sinon un utilisateur
+    // pourrait consulter l'énoncé complet avant de passer le test.
+    ExamDTO getExam(String codeExam, Authentication authentication) throws ExamNotFoundException;
 
     ExamDTO updateExam(ExamDTO examDTO, Long userId) throws UserNotFoundException, ExamNotFoundException;
 

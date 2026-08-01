@@ -31,8 +31,8 @@ public class ExamRestController {
     }
 
     @GetMapping("/exams/{id}")
-    public ExamDTO getExam(@PathVariable(name = "id") String codeExam) throws ExamNotFoundException{
-        return examService.getExam(codeExam);
+    public ExamDTO getExam(@PathVariable(name = "id") String codeExam, Authentication authentication) throws ExamNotFoundException{
+        return examService.getExam(codeExam, authentication);
     }
     @GetMapping("/examsOfUser/{userId}")
     public List<ExamDTO> getExamsForUser(@PathVariable Long userId) throws UserNotFoundException {

@@ -36,6 +36,7 @@ public class ExamServiceImpl implements ExamService {
     private AppUserService userService;
     private GroupRepository groupRepository;
     private TestExamRepository testExamRepository;
+    private com.acoidemy.exambackend.security.SecurityUtils securityUtils;
 
     @Override
     public ExamDTO saveExam(ExamDTO examDTO) throws UserNotFoundException, ExamNotFoundException {
@@ -71,7 +72,41 @@ public class ExamServiceImpl implements ExamService {
     }
 
     @Override
-    public ExamDTO getExam(String codeExam) throws ExamNotFoundException {
+    public ExamDTO getExam(String codeExam, org.springframework.security.core.Authentication authentication) throws ExamNotFoundException {
+        ExamDTO examDTO = getExamInternal(codeExam);
+
+        // ── AJOUT : un examen complet (questions + réponses, answerStatus compris)
+        // ne doit être visible que pour son créateur ou un admin. Sans ce contrôle,
+        // n'importe quel utilisateur pouvait consulter tout l'énoncé — et même le
+        // corrigé, answerStatus n'étant pas masqué ici comme il l'est sur /test —
+        // avant même de commencer le test, ou sans jamais le passer.
+        boolean allowed = false;
+        try {
+            if (authentication != null && authentication.isAuthenticated()) {
+                var currentUser = securityUtils.getCurrentUser(authentication);
+                allowed = (examDTO.getUserId() != null && examDTO.getUserId().equals(currentUser.getId()))
+                        || securityUtils.isAdmin(authentication);
+            }
+        } catch (Exception e) {
+            // Authentification absente/invalide : on retombe sur le comportement le
+            // plus restrictif (pas de questions), jamais une erreur 500 côté client.
+            allowed = false;
+        }
+
+        if (!allowed) {
+            examDTO.setQuestionDTOList(null);
+        }
+
+        return examDTO;
+    }
+
+    /**
+     * Version interne, non filtrée : réservée aux traitements serveur qui ont
+     * légitimement besoin du contenu complet (ex: vérifier le propriétaire d'un
+     * examen avant d'y ajouter une question). Ne JAMAIS exposer son résultat
+     * directement à un client sans passer par getExam(...) ci-dessus.
+     */
+    private ExamDTO getExamInternal(String codeExam) throws ExamNotFoundException {
         Exam exam = examRepository.findById(codeExam)
                 .orElseThrow(() -> new ExamNotFoundException("Exam Not Found"));
 
@@ -290,7 +325,7 @@ public class ExamServiceImpl implements ExamService {
     @Override
     public QuestionDTO saveQuestionWithAnswers(QuestionDTO questionDTO, Long userId) throws ExamNotFoundException {
         log.info("Saving new Question And Answers  ");
-        ExamDTO examDTO = this.getExam(questionDTO.getExamId());
+        ExamDTO examDTO = this.getExamInternal(questionDTO.getExamId());
         if (examDTO.getUserId() == null || !examDTO.getUserId().equals(userId)) {
             throw new RuntimeException("Vous ne pouvez ajouter des questions qu'à vos propres examens.");
         }
