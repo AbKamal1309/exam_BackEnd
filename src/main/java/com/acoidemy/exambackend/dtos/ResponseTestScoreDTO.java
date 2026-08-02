@@ -14,6 +14,9 @@ import java.util.List;
 public class ResponseTestScoreDTO {
 
     private String  testId;
+    // Absent jusqu'ici alors que le mobile l'attendait déjà (Models.kt) : sans lui,
+    // impossible de savoir vers quel examen naviguer pour la correction.
+    private String  examId;
     private String  userName;
     private String  examSetName;
     private int     score;
