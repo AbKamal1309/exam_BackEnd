@@ -127,6 +127,8 @@ public class ExamServiceImpl implements ExamService {
         if (examDTO.getStatus() != null) exam.setStatus(examDTO.getStatus());
         if (examDTO.getVisibility() != null) exam.setVisibility(examDTO.getVisibility());
         exam.setDurationMinutes(examDTO.getDurationMinutes());
+        // ── AJOUT : même oubli que dans fromExamAllQuestionsAndAnswersDTO ──
+        if (examDTO.getMaxAttempts() != null) exam.setMaxAttempts(examDTO.getMaxAttempts());
 
         List<QuestionDTO> incomingQuestions = examDTO.getQuestionDTOList() != null
                 ? examDTO.getQuestionDTOList() : new ArrayList<>();

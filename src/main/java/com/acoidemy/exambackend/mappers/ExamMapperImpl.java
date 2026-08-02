@@ -289,6 +289,9 @@ public class ExamMapperImpl {
         exam.setVisibility(examDTO.getVisibility());
         exam.setStatus(examDTO.getStatus());
         exam.setDurationMinutes(examDTO.getDurationMinutes());
+        // ── AJOUT : oublié ici, donc chaque nouvel examen retombait sur la valeur
+        // par défaut du champ (3) quoi que le formulaire mobile envoie.
+        exam.setMaxAttempts(examDTO.getMaxAttempts() != null ? examDTO.getMaxAttempts() : 3);
 
 
         List<QuestionDTO> questionDTOList = examDTO.getQuestionDTOList();
