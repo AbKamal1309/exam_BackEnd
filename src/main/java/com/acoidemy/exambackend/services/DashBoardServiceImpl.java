@@ -49,6 +49,9 @@ public class DashBoardServiceImpl implements DashBoardService{
         ResponseTestScoreDTO responseTestScoreDTO=new ResponseTestScoreDTO();
 
         responseTestScoreDTO.setTestId(requestTestScore.getTestId());
+        // ── AJOUT : oublié jusqu'ici, donc le mobile ne pouvait jamais savoir
+        // vers quel examen naviguer pour la page de correction.
+        responseTestScoreDTO.setExamId(testExam.getExam().getCodeExam());
         responseTestScoreDTO.setUserName(testExam.getAppUser().getName());
         responseTestScoreDTO.setExamSetName(testExam.getExam().getAppUser().getName());
         responseTestScoreDTO.setScore(testExam.getScore());
