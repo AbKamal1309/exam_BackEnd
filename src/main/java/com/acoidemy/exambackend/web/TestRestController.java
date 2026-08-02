@@ -4,6 +4,7 @@ import com.acoidemy.exambackend.dtos.TestExamDTO;
 import com.acoidemy.exambackend.dtos.TestRequestDTO;
 import com.acoidemy.exambackend.dtos.TestResultDTO;
 import com.acoidemy.exambackend.dtos.TestSendDTO;
+import com.acoidemy.exambackend.dtos.ExamCorrectionDTO;
 import com.acoidemy.exambackend.exceptions.*;
 import com.acoidemy.exambackend.services.TestService;
 import lombok.AllArgsConstructor;
