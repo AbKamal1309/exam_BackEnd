@@ -30,6 +30,7 @@ public class TestServiceImpl implements TestService {
     private final AnswerRepository answerRepository;
     private final ExamMapperImpl dtoMapper;
     private final TestSessionRepository testSessionRepository; // ── AJOUT ──
+    private final com.acoidemy.exambackend.security.SecurityUtils securityUtils;
 
     @Override
     public TestExamDTO getTestExam(TestRequestDTO testRequestDTO)
@@ -45,10 +46,12 @@ public class TestServiceImpl implements TestService {
                 .orElseThrow(() -> new ExamNotFoundException("Exam Not Found"));
 
         // Vérifier le nombre de tentatives déjà effectuées
+        int maxAttempts = exam.getMaxAttempts() != null ? exam.getMaxAttempts() : 3;
         long attempts = testExamRepository.countByAppUserIdAndExamCodeExam(
                 testRequestDTO.getUserId(), testRequestDTO.getCodeExam());
-        if (attempts >= 3) {
-            throw new TooManyAttemptsException("Vous avez déjà utilisé vos 3 tentatives pour cet examen.");
+        if (attempts >= maxAttempts) {
+            throw new TooManyAttemptsException(
+                    "Vous avez déjà utilisé vos " + maxAttempts + " tentatives pour cet examen.");
         }
 
         String examSetterName = exam.getAppUser() != null ? exam.getAppUser().getName() : "Unknown";
@@ -115,10 +118,11 @@ public class TestServiceImpl implements TestService {
         Exam exam = examRepository.findById(testSendDTO.getCodeExam())
                 .orElseThrow(() -> new ExamNotFoundException("Exam Not Found"));
 
+        int maxAttempts = exam.getMaxAttempts() != null ? exam.getMaxAttempts() : 3;
         long attempts = testExamRepository.countByAppUserIdAndExamCodeExam(
                 testSendDTO.getUserId(), testSendDTO.getCodeExam());
-        if (attempts >= 3) {
-            throw new TooManyAttemptsException("Limite de tentatives atteinte (3 maximum).");
+        if (attempts >= maxAttempts) {
+            throw new TooManyAttemptsException("Limite de tentatives atteinte (" + maxAttempts + " maximum).");
         }
 
         // 3. Vérification des questions soumises
@@ -145,6 +149,16 @@ public class TestServiceImpl implements TestService {
         // 5. Comparer chaque question soumise avec les données de la BD
         int correctCount = 0;
         int totalQuestions = exam.getQuestions().size();
+
+        // Lookup rapide des entités Question par code, pour persister ensuite quelles
+        // réponses précises l'utilisateur a choisies (nécessaire pour la correction,
+        // voir plus bas — jusqu'ici sendTest() ne gardait aucune trace des réponses
+        // soumises une fois le score calculé).
+        Map<String, Question> questionEntityMap = new HashMap<>();
+        for (Question q : exam.getQuestions()) {
+            questionEntityMap.put(q.getCodeQuestion(), q);
+        }
+        List<TestAnswer> testAnswersToSave = new ArrayList<>();
 
         for (QuestionDTO submittedQ : submittedQuestions) {
             log.info("--- Processing question: {} ---", submittedQ.getCodeQuestion());
@@ -195,6 +209,25 @@ public class TestServiceImpl implements TestService {
             } else {
                 log.info("Question {} -> WRONG", submittedQ.getCodeQuestion());
             }
+
+            // Persister les réponses choisies par l'utilisateur pour cette question
+            // (indépendamment du résultat) : nécessaire pour la page de correction.
+            Question questionEntity = questionEntityMap.get(submittedQ.getCodeQuestion());
+            if (questionEntity != null && questionEntity.getAnswers() != null && submittedAnswers != null) {
+                for (AnswerDTO submittedAnswer : submittedAnswers) {
+                    if (submittedAnswer.getAnswerStatus() != AnswerStatus.CORRECT) continue; // pas sélectionnée
+                    questionEntity.getAnswers().stream()
+                            .filter(a -> a.getCodeAnswer().equals(submittedAnswer.getCodeAnswer()))
+                            .findFirst()
+                            .ifPresent(chosen -> {
+                                TestAnswer ta = new TestAnswer();
+                                ta.setQuestion(questionEntity);
+                                ta.setChosenAnswer(chosen);
+                                ta.setCorrect(chosen.getAnswerStatus() == AnswerStatus.CORRECT);
+                                testAnswersToSave.add(ta);
+                            });
+                }
+            }
         }
 
         log.info("=== FINAL: {}/{} correct", correctCount, totalQuestions);
@@ -215,6 +248,12 @@ public class TestServiceImpl implements TestService {
 
         TestExam savedTest = testExamRepository.save(testExam);
         log.info("Test saved - Score: {}/{} ({}%)", correctCount, totalQuestions, testExam.getScorePercentage());
+
+        // Lier et sauvegarder les réponses choisies, maintenant que le test a un id.
+        for (TestAnswer ta : testAnswersToSave) {
+            ta.setTestExam(savedTest);
+        }
+        testAnswerRepository.saveAll(testAnswersToSave);
 
         // ── AJOUT : clôturer la session de minuteur si elle existe ──────
         testSessionRepository
@@ -319,5 +358,83 @@ public class TestServiceImpl implements TestService {
         log.info("Score calculated: {}/{} ({}%)", correctCount, totalQuestions, scoreDTO.getScorePercentage());
 
         return scoreDTO;
+    }
+
+    @Override
+    public ExamCorrectionDTO getCorrection(String codeExam, org.springframework.security.core.Authentication authentication)
+            throws ExamNotFoundException, UserNotFoundException {
+
+        // userId résolu depuis le JWT, jamais depuis un paramètre client.
+        Long userId = securityUtils.getCurrentUserId(authentication);
+
+        Exam exam = examRepository.findById(codeExam)
+                .orElseThrow(() -> new ExamNotFoundException("Exam Not Found"));
+
+        int maxAttempts = exam.getMaxAttempts() != null ? exam.getMaxAttempts() : 3;
+        long attempts = testExamRepository.countByAppUserIdAndExamCodeExam(userId, codeExam);
+
+        // ── Cœur de la fonctionnalité demandée : la correction ne se dévoile
+        // qu'une fois toutes les tentatives autorisées épuisées ──
+        if (attempts < maxAttempts) {
+            throw new RuntimeException(
+                    "La correction ne sera disponible qu'après avoir épuisé vos " + maxAttempts +
+                            " tentatives (" + attempts + "/" + maxAttempts + " utilisées).");
+        }
+
+        // On corrige sur la DERNIÈRE tentative : c'est la plus pertinente à revoir.
+        List<TestExam> userTests = testExamRepository.findByAppUserIdAndExamCodeExam(userId, codeExam);
+        TestExam lastAttempt = userTests.stream()
+                .max(Comparator.comparing(TestExam::getDatePassed))
+                .orElseThrow(() -> new RuntimeException("Aucune tentative trouvée pour cet examen."));
+
+        // Réponses choisies lors de cette dernière tentative, groupées par question.
+        Map<String, List<TestAnswer>> chosenByQuestion = new HashMap<>();
+        for (TestAnswer ta : lastAttempt.getTestAnswers()) {
+            if (ta.getQuestion() == null) continue;
+            chosenByQuestion
+                    .computeIfAbsent(ta.getQuestion().getCodeQuestion(), k -> new ArrayList<>())
+                    .add(ta);
+        }
+
+        List<QuestionCorrectionDTO> questionCorrections = new ArrayList<>();
+        for (Question q : exam.getQuestions()) {
+            List<TestAnswer> chosen = chosenByQuestion.getOrDefault(q.getCodeQuestion(), Collections.emptyList());
+            java.util.Set<String> chosenCodeAnswers = new java.util.HashSet<>();
+            for (TestAnswer ta : chosen) {
+                if (ta.getChosenAnswer() != null) chosenCodeAnswers.add(ta.getChosenAnswer().getCodeAnswer());
+            }
+
+            List<AnswerCorrectionDTO> answerCorrections = new ArrayList<>();
+            if (q.getAnswers() != null) {
+                for (Answer a : q.getAnswers()) {
+                    answerCorrections.add(AnswerCorrectionDTO.builder()
+                            .answerContent(a.getAnswerContent())
+                            .actuallyCorrect(a.getAnswerStatus() == AnswerStatus.CORRECT)
+                            .userSelected(chosenCodeAnswers.contains(a.getCodeAnswer()))
+                            .build());
+                }
+            }
+
+            boolean fullyCorrect = answerCorrections.stream()
+                    .allMatch(ac -> ac.isActuallyCorrect() == ac.isUserSelected());
+
+            questionCorrections.add(QuestionCorrectionDTO.builder()
+                    .questionContent(q.getQuestionContent())
+                    .description(q.getDescription())
+                    .attachmentUrl(q.getAttachmentUrl())
+                    .attachmentType(q.getAttachmentType() != null ? q.getAttachmentType().name() : null)
+                    .attachmentName(q.getAttachmentName())
+                    .answers(answerCorrections)
+                    .fullyCorrect(fullyCorrect)
+                    .build());
+        }
+
+        return ExamCorrectionDTO.builder()
+                .codeExam(exam.getCodeExam())
+                .examDescription(exam.getDescription())
+                .attemptsUsed((int) attempts)
+                .maxAttempts(maxAttempts)
+                .questions(questionCorrections)
+                .build();
     }
 }

@@ -38,6 +38,14 @@ public class TestRestController {
 
     }
 
+    @GetMapping("/test/correction")
+    public ExamCorrectionDTO getCorrection(
+            @RequestParam String codeExam,
+            org.springframework.security.core.Authentication authentication
+    ) throws ExamNotFoundException, UserNotFoundException {
+        return testService.getCorrection(codeExam, authentication);
+    }
+
     @ExceptionHandler(TooManyAttemptsException.class)
     public ResponseEntity<?> handleTooManyAttempts(TooManyAttemptsException e) {
         return ResponseEntity.status(HttpStatus.FORBIDDEN).body(e.getMessage());

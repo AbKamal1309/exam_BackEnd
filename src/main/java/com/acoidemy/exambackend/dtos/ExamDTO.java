@@ -25,6 +25,7 @@ public class ExamDTO {
     private List<QuestionDTO> questionDTOList;
     private Integer durationMinutes;
     private Integer numberOfTestsPassed;
+    private Integer maxAttempts;
 
 
 

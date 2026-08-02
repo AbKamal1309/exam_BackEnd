@@ -50,6 +50,12 @@ public class Exam {
     @Column(name = "duration_minutes")
     private Integer durationMinutes; // null = pas de limite de temps
 
+    // ── Nombre de tentatives autorisées, définies par le créateur ──
+    // Défaut à 3 pour préserver le comportement figé qui existait avant
+    // (TestServiceImpl vérifiait "attempts >= 3" en dur).
+    @Column(name = "max_attempts")
+    private Integer maxAttempts = 3;
+
 
     // ── Questions de l'examen ─────────────────────────────────────
     @OneToMany(mappedBy = "exam", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
