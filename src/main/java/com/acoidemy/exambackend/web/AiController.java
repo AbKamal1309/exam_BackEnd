@@ -6,6 +6,7 @@ import com.acoidemy.exambackend.services.AiQuestionGenerationService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.MediaType;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -26,7 +27,8 @@ public class AiController {
     @PreAuthorize("isAuthenticated()")
     public List<QuestionDTO> generateQuestions(
             @RequestPart("request") GenerateQuestionsRequestDTO request,
-            @RequestPart(value = "file", required = false) MultipartFile file) {
-        return aiQuestionGenerationService.generateQuestions(request, file);
+            @RequestPart(value = "file", required = false) MultipartFile file,
+            Authentication authentication) {
+        return aiQuestionGenerationService.generateQuestions(request, file, authentication);
     }
 }

@@ -34,6 +34,7 @@ public class GroupService {
     private final ExamRepository examRepository;
     private final AppUserRepository userRepository;
     private final SocketService socketService;
+    private final BillingService billingService;
 
     // ==================== CRÉATION ET LECTURE ====================
 
@@ -42,6 +43,8 @@ public class GroupService {
      */
     public GroupResponseDTO createGroup(GroupRequestDTO dto) {
         AppUser creator = findUserById(dto.getCreatorId());
+
+        billingService.checkGroupQuota(creator);
 
         if (groupRepository.existsByGroupName(dto.getName())) {
             throw new RuntimeException("Un groupe avec ce nom existe déjà.");

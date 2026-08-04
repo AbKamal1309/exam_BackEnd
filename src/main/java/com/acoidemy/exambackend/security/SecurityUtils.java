@@ -34,4 +34,15 @@ public class SecurityUtils {
         return authentication.getAuthorities().stream()
                 .anyMatch(a -> a.getAuthority().equalsIgnoreCase("ROLE_ADMIN"));
     }
+
+    /**
+     * Variante utile quand seule l'entité AppUser est disponible (pas
+     * l'Authentication de la requête HTTP en cours) — ex: BillingService, appelé
+     * depuis des services métier qui manipulent déjà un AppUser.
+     */
+    public boolean isAdminUser(AppUser user) {
+        if (user.getAppRoles() == null) return false;
+        return user.getAppRoles().stream()
+                .anyMatch(r -> "ROLE_ADMIN".equalsIgnoreCase(r.getRoleName()));
+    }
 }

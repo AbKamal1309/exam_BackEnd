@@ -25,6 +25,17 @@ public class AppUser {
     private String email;
     private String password;
 
+    // ── Abonnement premium ──────────────────────────────────────────
+    // null ou date passée = compte gratuit. Mis à jour uniquement après
+    // vérification côté serveur d'un achat Google Play (jamais via un flag
+    // envoyé directement par le client mobile).
+    private java.time.LocalDateTime premiumUntil;
+
+    // ── Quota mensuel de génération IA (compte gratuit uniquement) ──
+    private int aiQuestionsUsedThisMonth = 0;
+    // Prochaine date de remise à zéro du compteur ci-dessus.
+    private java.time.LocalDateTime aiQuotaResetAt;
+
     // ── Examens créés par l'utilisateur ───────────────────────────
     @OneToMany(mappedBy = "appUser", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     private List<Exam> exams = new ArrayList<>();
@@ -61,5 +72,10 @@ public class AppUser {
     // Seul le créateur du groupe peut lui attribuer ce rôle
     @ManyToMany(mappedBy = "admins", fetch = FetchType.LAZY)
     private List<Group> adminGroups = new ArrayList<>();
+
+    /** true si l'abonnement premium est actif à l'instant présent. */
+    public boolean isPremium() {
+        return premiumUntil != null && premiumUntil.isAfter(java.time.LocalDateTime.now());
+    }
 
 }

@@ -32,7 +32,11 @@ import java.util.Map;
 
 @Service
 @Slf4j
+@lombok.RequiredArgsConstructor
 public class AiQuestionGenerationService {
+
+    private final BillingService billingService;
+    private final com.acoidemy.exambackend.security.SecurityUtils securityUtils;
 
     private final RestTemplate restTemplate = new RestTemplate();
     private final ObjectMapper objectMapper = new ObjectMapper();
@@ -51,7 +55,7 @@ public class AiQuestionGenerationService {
     private static final int MAX_REFERENCE_CHARS = 12000;
     private static final long MAX_FILE_SIZE_BYTES = 10L * 1024 * 1024; // 10 Mo
 
-    public List<QuestionDTO> generateQuestions(GenerateQuestionsRequestDTO request, MultipartFile file) {
+    public List<QuestionDTO> generateQuestions(GenerateQuestionsRequestDTO request, MultipartFile file, org.springframework.security.core.Authentication authentication) {
         if (apiKey == null || apiKey.isBlank()) {
             throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE,
                     "La génération IA n'est pas configurée (app.deepseek.api-key manquant côté serveur).");
@@ -59,6 +63,11 @@ public class AiQuestionGenerationService {
         if (request.getSubject() == null || request.getSubject().isBlank()) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Le sujet est requis.");
         }
+
+        // Vérifié AVANT l'appel payant à l'API IA : inutile de consommer du crédit
+        // DeepSeek si l'utilisateur est de toute façon bloqué par son quota.
+        com.acoidemy.exambackend.entities.AppUser currentUser = securityUtils.getCurrentUser(authentication);
+        billingService.checkAiQuota(currentUser);
 
         int count = request.getNumberOfQuestions() == null
                 ? 5
@@ -107,7 +116,9 @@ public class AiQuestionGenerationService {
                     "Erreur lors de la génération IA : " + e.getMessage());
         }
 
-        return parseQuestions(fixInvalidJsonEscapes(content));
+        List<QuestionDTO> generated = parseQuestions(fixInvalidJsonEscapes(content));
+        billingService.incrementAiUsage(currentUser);
+        return generated;
     }
 
     private String extractTextFromFile(MultipartFile file) {

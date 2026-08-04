@@ -101,6 +101,12 @@
 			<artifactId>google-api-client</artifactId>
 			<version>2.2.0</version>
 		</dependency>
+		<!-- Vérification des achats d'abonnement Google Play côté serveur -->
+		<dependency>
+			<groupId>com.google.apis</groupId>
+			<artifactId>google-api-services-androidpublisher</artifactId>
+			<version>v3-rev20260706-2.0.0</version>
+		</dependency>
 		<dependency>
 			<groupId>org.apache.pdfbox</groupId>
 			<artifactId>pdfbox</artifactId>
