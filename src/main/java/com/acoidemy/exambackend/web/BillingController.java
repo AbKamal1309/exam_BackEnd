@@ -1,5 +1,8 @@
 package com.acoidemy.exambackend.web;
 
+import com.acoidemy.exambackend.dtos.ManualPaymentInstructionsDTO;
+import com.acoidemy.exambackend.dtos.ManualPremiumRequestCreateDTO;
+import com.acoidemy.exambackend.dtos.ManualPremiumRequestDTO;
 import com.acoidemy.exambackend.dtos.SubscriptionStatusDTO;
 import com.acoidemy.exambackend.dtos.VerifyPurchaseRequestDTO;
 import com.acoidemy.exambackend.services.BillingService;
@@ -9,6 +12,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
 
 @RestController
 @RequestMapping("/billing")
@@ -35,5 +40,49 @@ public class BillingController {
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<SubscriptionStatusDTO> getStatus(Authentication authentication) {
         return ResponseEntity.ok(billingService.getStatus(authentication));
+    }
+
+    // ── Activation premium manuelle (RIB / WhatsApp) ──────────────────────────
+
+    @GetMapping("/manual/instructions")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<ManualPaymentInstructionsDTO> getManualInstructions() {
+        return ResponseEntity.ok(billingService.getManualPaymentInstructions());
+    }
+
+    @PostMapping("/manual/request")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<ManualPremiumRequestDTO> createManualRequest(
+            @RequestBody ManualPremiumRequestCreateDTO request,
+            Authentication authentication) {
+        return ResponseEntity.ok(billingService.createManualRequest(request, authentication));
+    }
+
+    @GetMapping("/manual/my-request")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<ManualPremiumRequestDTO> getMyManualRequest(Authentication authentication) {
+        return ResponseEntity.ok(billingService.getMyPendingManualRequest(authentication));
+    }
+
+    // Réservé admin — la vérification isAdminUser() se fait aussi dans le service
+    // (défense en profondeur), mais @PreAuthorize coupe court dès la requête HTTP.
+    @GetMapping("/manual/requests")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<List<ManualPremiumRequestDTO>> getPendingManualRequests(Authentication authentication) {
+        return ResponseEntity.ok(billingService.getPendingManualRequests(authentication));
+    }
+
+    @PostMapping("/manual/requests/{id}/approve")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<ManualPremiumRequestDTO> approveManualRequest(
+            @PathVariable Long id, Authentication authentication) {
+        return ResponseEntity.ok(billingService.approveManualRequest(id, authentication));
+    }
+
+    @PostMapping("/manual/requests/{id}/reject")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<ManualPremiumRequestDTO> rejectManualRequest(
+            @PathVariable Long id, Authentication authentication) {
+        return ResponseEntity.ok(billingService.rejectManualRequest(id, authentication));
     }
 }
