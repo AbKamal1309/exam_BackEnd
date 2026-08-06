@@ -43,6 +43,6 @@ public class SecurityUtils {
     public boolean isAdminUser(AppUser user) {
         if (user.getAppRoles() == null) return false;
         return user.getAppRoles().stream()
-                .anyMatch(r -> "ROLE_ADMIN".equalsIgnoreCase(r.getRoleName()));
+                .anyMatch(r -> "ADMIN".equalsIgnoreCase(r.getRoleName()));
     }
 }

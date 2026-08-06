@@ -61,7 +61,10 @@ public class BillingController {
     @GetMapping("/manual/my-request")
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<ManualPremiumRequestDTO> getMyManualRequest(Authentication authentication) {
-        return ResponseEntity.ok(billingService.getMyPendingManualRequest(authentication));
+        ManualPremiumRequestDTO dto = billingService.getMyPendingManualRequest(authentication);
+        // 204 explicite plutôt qu'un corps 200 vide et ambigu : Retrofit/Gson côté
+        // mobile plantait en essayant de parser un corps de 0 octet ("End of input").
+        return dto != null ? ResponseEntity.ok(dto) : ResponseEntity.noContent().build();
     }
 
     // Réservé admin — la vérification isAdminUser() se fait aussi dans le service
