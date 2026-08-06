@@ -182,9 +182,22 @@ public class BillingServiceImpl implements BillingService {
 
     private SubscriptionStatusDTO buildStatus(AppUser user) {
         resetQuotaIfNeeded(user);
+
+        String currentPlan = null;
+        String provider = null;
+        if (user.isPremium()) {
+            Subscription latest = subscriptionRepository.findFirstByUserIdOrderByIdDesc(user.getId()).orElse(null);
+            if (latest != null && latest.getProductId() != null) {
+                currentPlan = latest.getProductId().toLowerCase().contains("annual") ? "ANNUAL" : "MONTHLY";
+                provider = latest.getProductId().startsWith("manual_") ? "MANUAL" : "GOOGLE_PLAY";
+            }
+        }
+
         return SubscriptionStatusDTO.builder()
                 .premium(user.isPremium())
                 .premiumUntil(user.getPremiumUntil())
+                .currentPlan(currentPlan)
+                .provider(provider)
                 .aiQuestionsUsedThisMonth(user.getAiQuestionsUsedThisMonth())
                 .aiQuestionsQuota(FREE_AI_QUOTA)
                 .groupsCreated(user.getCreatedGroups() != null ? user.getCreatedGroups().size() : 0)

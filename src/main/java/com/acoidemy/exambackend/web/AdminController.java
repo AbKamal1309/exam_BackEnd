@@ -1,6 +1,8 @@
 package com.acoidemy.exambackend.web;
 
 import com.acoidemy.exambackend.dtos.AdminStatsDTO;
+import com.acoidemy.exambackend.dtos.AdminSubscriptionSummaryDTO;
+import com.acoidemy.exambackend.dtos.AdminUserSummaryDTO;
 import com.acoidemy.exambackend.exceptions.ExamNotFoundException;
 import com.acoidemy.exambackend.exceptions.UserNotFoundException;
 import com.acoidemy.exambackend.services.AdminService;
@@ -10,6 +12,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
 
 // Toutes les routes de ce contrôleur exigent le rôle ADMIN — un seul point de contrôle.
 @RestController
@@ -25,6 +29,17 @@ public class AdminController {
     @GetMapping("/stats")
     public AdminStatsDTO getStats() {
         return adminService.getStats();
+    }
+
+    // query optionnel : liste complète si absent (plafonnée à 100 côté service).
+    @GetMapping("/users")
+    public List<AdminUserSummaryDTO> searchUsers(@RequestParam(required = false) String query) {
+        return adminService.searchUsers(query);
+    }
+
+    @GetMapping("/subscriptions")
+    public List<AdminSubscriptionSummaryDTO> getActiveSubscriptions() {
+        return adminService.getActiveSubscriptions();
     }
 
     @PostMapping("/users/{userId}/promote")
