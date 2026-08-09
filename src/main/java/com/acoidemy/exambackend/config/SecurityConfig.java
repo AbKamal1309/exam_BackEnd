@@ -47,6 +47,8 @@ public class SecurityConfig {
                 .requestMatchers("/uploads/**").permitAll()
                 // Documentation API
                 .requestMatchers("/swagger-ui/**", "/v3/api-docs/**", "/swagger-resources/**").permitAll()
+                // Endpoint de santé pour les services de ping anti-veille (cron-job.org, UptimeRobot...)
+                .requestMatchers(HttpMethod.GET, "/health").permitAll()
                 // TODO: adapte cette liste à tes besoins (ex: examens publics en lecture seule)
                 // .requestMatchers(HttpMethod.GET, "/exams/public").permitAll()
                 .anyRequest().authenticated()
