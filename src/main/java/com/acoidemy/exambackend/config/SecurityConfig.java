@@ -41,6 +41,8 @@ public class SecurityConfig {
             .authorizeHttpRequests(auth -> auth
                 // Authentification
                 .requestMatchers("/auth/login", "/auth/refresh", "/auth/google").permitAll()
+                // Récupération de mot de passe (doit être accessible sans être déjà connecté)
+                .requestMatchers("/auth/forgot-password", "/auth/reset-password").permitAll()
                 // Inscription (création d'un nouvel utilisateur)
                 .requestMatchers(HttpMethod.POST, "/users").permitAll()
                 // Fichiers joints publics (images/pdf/vidéos des questions)

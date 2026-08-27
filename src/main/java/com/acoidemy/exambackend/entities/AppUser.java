@@ -25,6 +25,13 @@ public class AppUser {
     private String email;
     private String password;
 
+    // ── Récupération de mot de passe (code à 6 chiffres) ────────────
+    // null tant qu'aucune demande de reset n'est en cours. Le code est
+    // à usage unique : effacé dès qu'il est utilisé avec succès, ou
+    // simplement ignoré/remplacé si une nouvelle demande arrive avant.
+    private String resetCode;
+    private java.time.LocalDateTime resetCodeExpiresAt;
+
     // ── Abonnement premium ──────────────────────────────────────────
     // null ou date passée = compte gratuit. Mis à jour uniquement après
     // vérification côté serveur d'un achat Google Play (jamais via un flag

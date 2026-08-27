@@ -8,6 +8,7 @@ import com.acoidemy.exambackend.mappers.ExamMapperImpl;
 import com.acoidemy.exambackend.repositories.AppUserRepository;
 import com.acoidemy.exambackend.security.CustomUserDetailsService;
 import com.acoidemy.exambackend.security.JwtService;
+import com.acoidemy.exambackend.services.EmailService;
 import com.google.api.client.googleapis.auth.oauth2.GoogleIdToken;
 import com.google.api.client.googleapis.auth.oauth2.GoogleIdTokenVerifier;
 import com.google.api.client.http.javanet.NetHttpTransport;
@@ -20,6 +21,8 @@ import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 
+import java.security.SecureRandom;
+import java.time.LocalDateTime;
 import java.util.Collections;
 import java.util.UUID;
 
@@ -33,6 +36,8 @@ public class AuthController {
     private final JwtService jwtService;
     private final CustomUserDetailsService userDetailsService;
     private final ExamMapperImpl dtoMapper;
+    private final EmailService emailService;
+    private final SecureRandom secureRandom = new SecureRandom();
 
     @Value("${app.google.client-id:744131153960-dg5pk850gjgdbj5dbu7255ql1kv7lvqr.apps.googleusercontent.com}")
     private String googleClientId;
@@ -41,12 +46,14 @@ public class AuthController {
                           PasswordEncoder passwordEncoder,
                           JwtService jwtService,
                           CustomUserDetailsService userDetailsService,
-                          ExamMapperImpl dtoMapper) {
+                          ExamMapperImpl dtoMapper,
+                          EmailService emailService) {
         this.appUserRepository = appUserRepository;
         this.passwordEncoder = passwordEncoder;
         this.jwtService = jwtService;
         this.userDetailsService = userDetailsService;
         this.dtoMapper = dtoMapper;
+        this.emailService = emailService;
     }
 
     @PostMapping("/login")
@@ -146,6 +153,59 @@ public class AuthController {
         return new AuthResponseDTO(dtoMapper.fromUser(appUser), newAccessToken, request.getRefreshToken());
     }
 
+    /**
+     * Demande de réinitialisation : génère un code à 6 chiffres, valable 15 min,
+     * et l'envoie par email SI le compte existe. Réponse volontairement identique
+     * (générique) que l'email existe ou non, pour ne pas révéler quels emails
+     * sont inscrits (protection contre l'énumération de comptes).
+     */
+    @PostMapping("/forgot-password")
+    public GenericMessageResponse forgotPassword(@RequestBody ForgotPasswordRequest request) {
+        AppUser appUser = appUserRepository.findByEmail(request.getEmail());
+
+        if (appUser != null) {
+            String code = String.format("%06d", secureRandom.nextInt(1_000_000));
+            appUser.setResetCode(code);
+            appUser.setResetCodeExpiresAt(LocalDateTime.now().plusMinutes(15));
+            appUserRepository.save(appUser);
+            emailService.sendPasswordResetCode(appUser.getEmail(), code);
+        } else {
+            log.info("Demande de reset password pour un email inconnu : {}", request.getEmail());
+        }
+
+        return new GenericMessageResponse(
+            "Si un compte existe avec cet email, un code de vérification vient d'être envoyé."
+        );
+    }
+
+    /**
+     * Valide le code reçu par email et applique le nouveau mot de passe.
+     * Le code est à usage unique : effacé après un reset réussi.
+     */
+    @PostMapping("/reset-password")
+    public GenericMessageResponse resetPassword(@RequestBody ResetPasswordRequest request) throws UserNotFoundException {
+        AppUser appUser = appUserRepository.findByEmail(request.getEmail());
+        if (appUser == null) {
+            throw new UserNotFoundException("Code invalide ou expiré");
+        }
+
+        boolean codeValid = appUser.getResetCode() != null
+            && appUser.getResetCode().equals(request.getCode())
+            && appUser.getResetCodeExpiresAt() != null
+            && appUser.getResetCodeExpiresAt().isAfter(LocalDateTime.now());
+
+        if (!codeValid) {
+            throw new UserNotFoundException("Code invalide ou expiré");
+        }
+
+        appUser.setPassword(passwordEncoder.encode(request.getNewPassword()));
+        appUser.setResetCode(null);
+        appUser.setResetCodeExpiresAt(null);
+        appUserRepository.save(appUser);
+
+        return new GenericMessageResponse("Mot de passe mis à jour avec succès.");
+    }
+
     private AuthResponseDTO buildAuthResponse(AppUser appUser) {
         UserDetails userDetails = userDetailsService.loadUserByUsername(appUser.getEmail());
         String accessToken = jwtService.generateAccessToken(userDetails);
@@ -167,5 +227,26 @@ public class AuthController {
     @Setter
     public static class GoogleLoginRequest {
         private String idToken;
+    }
+
+    @Getter
+    @Setter
+    public static class ForgotPasswordRequest {
+        private String email;
+    }
+
+    @Getter
+    @Setter
+    public static class ResetPasswordRequest {
+        private String email;
+        private String code;
+        private String newPassword;
+    }
+
+    @Getter
+    @Setter
+    @lombok.AllArgsConstructor
+    public static class GenericMessageResponse {
+        private String message;
     }
 }
