@@ -27,13 +27,19 @@ public class FileStorageService {
             Map.entry("application/pdf", AttachmentType.PDF),
             Map.entry("application/msword", AttachmentType.WORD),
             Map.entry("application/vnd.openxmlformats-officedocument.wordprocessingml.document", AttachmentType.WORD),
+            Map.entry("text/plain", AttachmentType.TEXT),
             Map.entry("image/jpeg", AttachmentType.IMAGE),
             Map.entry("image/png", AttachmentType.IMAGE),
             Map.entry("image/gif", AttachmentType.IMAGE),
             Map.entry("image/webp", AttachmentType.IMAGE),
+            Map.entry("image/bmp", AttachmentType.IMAGE),
+            Map.entry("image/heic", AttachmentType.IMAGE),      // format par défaut des photos iPhone récents
+            Map.entry("image/heif", AttachmentType.IMAGE),
             Map.entry("video/mp4", AttachmentType.VIDEO),
             Map.entry("video/webm", AttachmentType.VIDEO),
-            Map.entry("video/quicktime", AttachmentType.VIDEO),
+            Map.entry("video/quicktime", AttachmentType.VIDEO), // .mov
+            Map.entry("video/x-matroska", AttachmentType.VIDEO), // .mkv
+            Map.entry("video/3gpp", AttachmentType.VIDEO),       // format par défaut de nombreux téléphones Android
             Map.entry("audio/mpeg", AttachmentType.AUDIO),
             Map.entry("audio/mp3", AttachmentType.AUDIO),
             Map.entry("audio/wav", AttachmentType.AUDIO),
@@ -41,7 +47,9 @@ public class FileStorageService {
             Map.entry("audio/ogg", AttachmentType.AUDIO),
             Map.entry("audio/mp4", AttachmentType.AUDIO),      // .m4a est souvent envoyé avec ce type
             Map.entry("audio/x-m4a", AttachmentType.AUDIO),
-            Map.entry("audio/webm", AttachmentType.AUDIO)
+            Map.entry("audio/webm", AttachmentType.AUDIO),
+            Map.entry("audio/aac", AttachmentType.AUDIO),
+            Map.entry("audio/3gpp", AttachmentType.AUDIO)      // enregistrements vocaux Android courants
     );
 
     public UploadResultDTO store(MultipartFile file) throws IOException {

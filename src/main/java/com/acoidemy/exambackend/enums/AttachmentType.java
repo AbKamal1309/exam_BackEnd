@@ -1,5 +1,5 @@
 package com.acoidemy.exambackend.enums;
 
 public enum AttachmentType {
-    PDF, WORD, IMAGE, VIDEO,AUDIO
+    PDF, WORD, TEXT, IMAGE, VIDEO, AUDIO
 }
