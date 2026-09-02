@@ -248,22 +248,37 @@ public class AiQuestionGenerationService {
      * avale le "f", transformant "\frac{1}{3}" en "▯rac{1}{3}". On double ici tout antislash
      * qui n'est PAS déjà suivi d'une séquence d'échappement JSON valide, pour le préserver
      * comme antislash littéral une fois le JSON parsé.
+     *
+     * IMPORTANT : quand on rencontre une paire déjà valide (ex: "\\", deux antislashs), il faut
+     * consommer les DEUX caractères d'un coup (i += 2) et ne jamais laisser le second antislash
+     * être réexaminé indépendamment au tour suivant — sinon il est retraité comme un nouvel
+     * antislash isolé (souvent suivi d'une lettre comme "c" dans "\\cos") et se retrouve doublé
+     * une seconde fois, produisant un triplement (\\\cos au lieu de \\cos). C'est exactement ce
+     * qui provoquait le bug observé sur les réponses IA contenant plusieurs commandes LaTeX déjà
+     * correctement échappées par le modèle (ex: sujets de trigonométrie : \cos, \sin, \circ...).
      */
     private String fixInvalidJsonEscapes(String raw) {
         StringBuilder sb = new StringBuilder(raw.length() + 32);
-        for (int i = 0; i < raw.length(); i++) {
+        int i = 0;
+        while (i < raw.length()) {
             char c = raw.charAt(i);
             if (c == '\\') {
                 char next = (i + 1 < raw.length()) ? raw.charAt(i + 1) : 0;
                 boolean validEscape = next == '"' || next == '\\' || next == '/'
                         || next == 'b' || next == 'f' || next == 'n'
                         || next == 'r' || next == 't' || next == 'u';
-                if (!validEscape) {
+                if (validEscape) {
+                    sb.append(c).append(next);
+                    i += 2;
+                    continue;
+                } else {
                     sb.append("\\\\");
+                    i++;
                     continue;
                 }
             }
             sb.append(c);
+            i++;
         }
         return sb.toString();
     }
