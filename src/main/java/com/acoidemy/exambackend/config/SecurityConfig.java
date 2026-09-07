@@ -66,7 +66,14 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration config = new CorsConfiguration();
-        config.setAllowedOrigins(List.of("http://localhost:4200"));
+        // setAllowedOriginPatterns() (pas setAllowedOrigins()) pour pouvoir utiliser
+        // un motif générique *.vercel.app — Vercel change parfois de sous-domaine
+        // entre les déploiements (previews), ce motif couvre tous les cas sans avoir
+        // à mettre à jour cette liste à chaque redéploiement.
+        config.setAllowedOriginPatterns(List.of(
+                "http://localhost:4200",
+                "https://*.vercel.app"
+        ));
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"));
         config.setAllowedHeaders(List.of("*"));
         config.setAllowCredentials(true);
