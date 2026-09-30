@@ -2,24 +2,20 @@ package com.acoidemy.exambackend.services;
 
 import com.acoidemy.exambackend.enums.AttachmentType;
 import com.acoidemy.exambackend.dtos.UploadResultDTO;
+import com.cloudinary.Cloudinary;
+import com.cloudinary.utils.ObjectUtils;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.nio.file.StandardCopyOption;
 import java.util.Map;
-import java.util.UUID;
 
 @Service
 public class FileStorageService {
 
-    @Value("${app.upload.dir:uploads}")
-    private String uploadDir;
+    private final Cloudinary cloudinary;
 
     private static final long MAX_SIZE = 50L * 1024 * 1024; // 50 Mo
 
@@ -33,24 +29,37 @@ public class FileStorageService {
             Map.entry("image/gif", AttachmentType.IMAGE),
             Map.entry("image/webp", AttachmentType.IMAGE),
             Map.entry("image/bmp", AttachmentType.IMAGE),
-            Map.entry("image/heic", AttachmentType.IMAGE),      // format par défaut des photos iPhone récents
+            Map.entry("image/heic", AttachmentType.IMAGE),
             Map.entry("image/heif", AttachmentType.IMAGE),
             Map.entry("video/mp4", AttachmentType.VIDEO),
             Map.entry("video/webm", AttachmentType.VIDEO),
-            Map.entry("video/quicktime", AttachmentType.VIDEO), // .mov
-            Map.entry("video/x-matroska", AttachmentType.VIDEO), // .mkv
-            Map.entry("video/3gpp", AttachmentType.VIDEO),       // format par défaut de nombreux téléphones Android
+            Map.entry("video/quicktime", AttachmentType.VIDEO),
+            Map.entry("video/x-matroska", AttachmentType.VIDEO),
+            Map.entry("video/3gpp", AttachmentType.VIDEO),
             Map.entry("audio/mpeg", AttachmentType.AUDIO),
             Map.entry("audio/mp3", AttachmentType.AUDIO),
             Map.entry("audio/wav", AttachmentType.AUDIO),
             Map.entry("audio/x-wav", AttachmentType.AUDIO),
             Map.entry("audio/ogg", AttachmentType.AUDIO),
-            Map.entry("audio/mp4", AttachmentType.AUDIO),      // .m4a est souvent envoyé avec ce type
+            Map.entry("audio/mp4", AttachmentType.AUDIO),
             Map.entry("audio/x-m4a", AttachmentType.AUDIO),
             Map.entry("audio/webm", AttachmentType.AUDIO),
             Map.entry("audio/aac", AttachmentType.AUDIO),
-            Map.entry("audio/3gpp", AttachmentType.AUDIO)      // enregistrements vocaux Android courants
+            Map.entry("audio/3gpp", AttachmentType.AUDIO)
     );
+
+    public FileStorageService(
+            @Value("${cloudinary.cloud-name}") String cloudName,
+            @Value("${cloudinary.api-key}") String apiKey,
+            @Value("${cloudinary.api-secret}") String apiSecret
+    ) {
+        this.cloudinary = new Cloudinary(ObjectUtils.asMap(
+                "cloud_name", cloudName,
+                "api_key", apiKey,
+                "api_secret", apiSecret,
+                "secure", true
+        ));
+    }
 
     public UploadResultDTO store(MultipartFile file) throws IOException {
         if (file.isEmpty()) {
@@ -66,25 +75,21 @@ public class FileStorageService {
             throw new IllegalArgumentException("Type de fichier non autorisé : " + contentType);
         }
 
-        Path uploadPath = Paths.get(uploadDir);
-        if (!Files.exists(uploadPath)) {
-            Files.createDirectories(uploadPath);
-        }
-
         String originalName = StringUtils.cleanPath(
                 file.getOriginalFilename() != null ? file.getOriginalFilename() : "fichier"
         );
-        String extension = "";
-        int dotIndex = originalName.lastIndexOf('.');
-        if (dotIndex >= 0) {
-            extension = originalName.substring(dotIndex);
-        }
 
-        String storedName = UUID.randomUUID() + extension;
-        Path targetPath = uploadPath.resolve(storedName);
-        Files.copy(file.getInputStream(), targetPath, StandardCopyOption.REPLACE_EXISTING);
+        String resourceType = switch (type) {
+            case IMAGE -> "image";
+            case VIDEO, AUDIO -> "video";
+            default -> "raw";
+        };
 
-        String url = "/uploads/" + storedName;
+        Map uploadResult = cloudinary.uploader().upload(file.getBytes(), ObjectUtils.asMap(
+                "resource_type", resourceType,
+                "folder", "exam-attachments"
+        ));
+        String url = (String) uploadResult.get("secure_url");
         return new UploadResultDTO(url, type, originalName);
     }
 }
