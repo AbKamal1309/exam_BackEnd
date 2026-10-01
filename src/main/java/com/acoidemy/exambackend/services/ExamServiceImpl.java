@@ -331,21 +331,28 @@ public class ExamServiceImpl implements ExamService {
         if (examDTO.getUserId() == null || !examDTO.getUserId().equals(userId)) {
             throw new RuntimeException("Vous ne pouvez ajouter des questions qu'à vos propres examens.");
         }
-        Question question=dtoMapper.fromQuestionDTOWithAnswers(questionDTO);
+        // On construit la question SANS les réponses (fromQuestionDTOWithAnswers
+        // appelait déjà question.setAnswers(...) en interne, ce qui, combiné au
+        // setAnswers(answers) plus bas sur l'entité redevenue "managed" après
+        // save(), provoquait "no longer referenced by the owning entity instance"
+        // sur la relation cascade=ALL,orphanRemoval=true).
+        Question question = dtoMapper.fromQuestionDTOWithoutAnswers(questionDTO);
+        question.setAnswers(new ArrayList<>()); // collection initialisée AVANT persistance, donc sans risque
         question.setExam(dtoMapper.fromExamDTO(examDTO));
         Question savedQuestion = questionRepository.save(question);
-        List<Answer> answers=new ArrayList<>();
-        for (int i=0;i<questionDTO.getAnswers().size();i++){
-            Answer answer=new Answer();
+
+        for (int i = 0; i < questionDTO.getAnswers().size(); i++) {
+            Answer answer = new Answer();
             answer.setCodeAnswer(IdGenerator.generate());
             answer.setAnswerContent(questionDTO.getAnswers().get(i).getAnswerContent());
             answer.setQuestion(savedQuestion);
             Answer savedAnswer = answerRepository.save(answer);
-            answers.add(savedAnswer);
+            // Mutation EN PLACE de la collection déjà suivie par Hibernate,
+            // jamais de réassignation via setAnswers() sur l'entité managée.
+            savedQuestion.getAnswers().add(savedAnswer);
         }
-        question.setAnswers(answers);
 
-        return dtoMapper.fromQuestion (question);
+        return dtoMapper.fromQuestion(savedQuestion);
     }
 
     @Override
