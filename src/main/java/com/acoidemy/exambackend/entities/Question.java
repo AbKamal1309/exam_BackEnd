@@ -33,7 +33,7 @@ public class Question {
     private TestExam test;
 
     @OneToMany(mappedBy = "question", cascade = CascadeType.ALL, orphanRemoval = true)
-    private List<Answer> answers;
+    private List<Answer> answers= new ArrayList<>();
 
     @Column(name = "attachment_url", length = 500)
     private String attachmentUrl;
